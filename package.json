@@ -1,11 +1,10 @@
 {
-  "name": "@zhigang1992/uploadfile",
+  "name": "uploadit",
   "version": "1.0.0",
   "description": "Terminal-style MCP server for uploading files to S3-compatible storage and getting shareable URLs",
   "main": "dist/index.js",
   "bin": {
-    "uploadfile": "dist/index.js",
-    "@zhigang1992/uploadfile": "dist/index.js"
+    "uploadit": "dist/index.js"
   },
   "type": "module",
   "scripts": {

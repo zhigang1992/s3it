@@ -256,7 +256,7 @@ class UploadFileServer {
   constructor() {
     this.server = new Server(
       {
-        name: "@zhigang1992/uploadfile",
+        name: "uploadit",
         version: "1.0.0",
       },
       {
@@ -596,7 +596,7 @@ class UploadFileServer {
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error("@zhigang1992/uploadfile ready");
+    console.error("uploadit ready");
   }
 }
 
