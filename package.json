@@ -1,0 +1,52 @@
+{
+  "name": "@zhigang1992/uploadfile",
+  "version": "1.0.0",
+  "description": "Terminal-style MCP server for uploading files to S3-compatible storage and getting shareable URLs",
+  "main": "dist/index.js",
+  "bin": {
+    "uploadfile": "dist/index.js",
+    "@zhigang1992/uploadfile": "dist/index.js"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "bun build index.ts --outdir dist --target node --minify",
+    "dev": "bun --hot index.ts",
+    "prepublishOnly": "bun run build"
+  },
+  "keywords": [
+    "mcp",
+    "file-upload",
+    "s3",
+    "cloud-storage",
+    "model-context-protocol",
+    "terminal",
+    "cli"
+  ],
+  "author": "zhigang1992",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhigang1992/uploadfile.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zhigang1992/uploadfile/issues"
+  },
+  "homepage": "https://github.com/zhigang1992/uploadfile#readme",
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^20.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
