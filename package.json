@@ -1,7 +1,7 @@
 {
   "name": "s3it",
-  "version": "1.0.0",
-  "description": "Terminal-style MCP server for uploading files to S3-compatible storage and getting shareable URLs",
+  "version": "1.1.0",
+  "description": "Simple CLI to upload files to S3 and get a shareable URL",
   "main": "dist/index.js",
   "bin": {
     "s3it": "dist/index.js"
@@ -13,24 +13,22 @@
     "prepublishOnly": "bun run build"
   },
   "keywords": [
-    "mcp",
     "file-upload",
     "s3",
     "cloud-storage",
-    "model-context-protocol",
-    "terminal",
-    "cli"
+    "cli",
+    "upload"
   ],
   "author": "zhigang1992",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zhigang1992/uploadfile.git"
+    "url": "git+https://github.com/zhigang1992/s3it.git"
   },
   "bugs": {
-    "url": "https://github.com/zhigang1992/uploadfile/issues"
+    "url": "https://github.com/zhigang1992/s3it/issues"
   },
-  "homepage": "https://github.com/zhigang1992/uploadfile#readme",
+  "homepage": "https://github.com/zhigang1992/s3it#readme",
   "files": [
     "dist/**/*",
     "README.md"
@@ -42,9 +40,7 @@
   "peerDependencies": {
     "typescript": "^5"
   },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.20.1"
-  },
+  "dependencies": {},
   "engines": {
     "node": ">=18.0.0"
   }
