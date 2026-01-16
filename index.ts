@@ -45,10 +45,9 @@ function signRequest(
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
   const dateStamp = amzDate.slice(0, 8);
 
-  const canonicalUri = url.pathname
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
+  // Use the already-encoded pathname from the URL object
+  // The URL constructor already properly encodes the path
+  const canonicalUri = url.pathname;
 
   const params = new URLSearchParams(url.search);
   const sortedParams = Array.from(params.entries()).sort((a, b) =>
