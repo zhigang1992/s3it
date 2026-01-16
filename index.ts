@@ -295,7 +295,8 @@ async function uploadFile(filePath: string): Promise<string> {
     }
   }
 
-  return `${S3_ENDPOINT}/${S3_BUCKET}/${remotePath}`;
+  const encodedPath = remotePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+  return `${S3_ENDPOINT}/${S3_BUCKET}/${encodedPath}`;
 }
 
 // Main
