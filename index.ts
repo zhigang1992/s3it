@@ -3,9 +3,9 @@ import { basename, extname } from "node:path";
 import { randomUUID, createHash, createHmac } from "node:crypto";
 import { promises as fs } from "node:fs";
 
-// S3 configuration from environment (defaults to reily.app public bucket)
+// S3 configuration from environment (defaults to reily.app share bucket)
 const S3_ENDPOINT = process.env.S3_ENDPOINT || "https://s3.reily.app";
-const S3_BUCKET = process.env.S3_BUCKET || "public";
+const S3_BUCKET = process.env.S3_BUCKET || "share";
 const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || "bhEJaGR0UGgmZtxEi2yY";
 const S3_SECRET_KEY =
   process.env.S3_SECRET_KEY || "lE1fn0FdAAhQwFLnumJt0th0Q2j684h4v8EIQdzy";
@@ -14,6 +14,17 @@ const S3_REGION = process.env.S3_REGION || "auto";
 // Multipart upload settings
 const MULTIPART_THRESHOLD = 100 * 1024 * 1024; // 100MB
 const PART_SIZE = 100 * 1024 * 1024; // 100MB per part
+
+// If-None-Match: * is signed into create requests. MinIO returns 412 if the key exists.
+// Object lock alone would just create a new version and change GET.
+const WRITE_ONCE = { "If-None-Match": "*" };
+
+function uploadFailure(action: string, status: number): string {
+  if (status === 412) {
+    return `${action}: object already exists`;
+  }
+  return `${action}: ${status}`;
+}
 
 // AWS Signature V4 signing utilities
 function getSignatureKey(
@@ -188,11 +199,11 @@ function detectContentType(filePath: string): string {
 
 async function initiateMultipartUpload(remotePath: string, contentType: string): Promise<string> {
   const url = new URL(`${S3_ENDPOINT}/${S3_BUCKET}/${remotePath}?uploads`);
-  const headers = signRequest("POST", url, { "Content-Type": contentType }, "", S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION);
+  const headers = signRequest("POST", url, { "Content-Type": contentType, ...WRITE_ONCE }, "", S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION);
 
   const response = await fetch(url.toString(), { method: "POST", headers });
   if (!response.ok) {
-    throw new Error(`Failed to initiate multipart upload: ${response.status}`);
+    throw new Error(uploadFailure("Failed to initiate multipart upload", response.status));
   }
 
   const responseText = await response.text();
@@ -219,11 +230,11 @@ async function completeMultipartUpload(remotePath: string, uploadId: string, par
   const url = new URL(`${S3_ENDPOINT}/${S3_BUCKET}/${remotePath}?uploadId=${encodeURIComponent(uploadId)}`);
   const partsXml = parts.map((p) => `<Part><PartNumber>${p.partNumber}</PartNumber><ETag>${p.etag}</ETag></Part>`).join("");
   const body = `<?xml version="1.0" encoding="UTF-8"?><CompleteMultipartUpload>${partsXml}</CompleteMultipartUpload>`;
-  const headers = signRequest("POST", url, { "Content-Type": "application/xml" }, body, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION);
+  const headers = signRequest("POST", url, { "Content-Type": "application/xml", ...WRITE_ONCE }, body, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION);
 
   const response = await fetch(url.toString(), { method: "POST", headers, body });
   if (!response.ok) {
-    throw new Error(`Failed to complete multipart upload: ${response.status}`);
+    throw new Error(uploadFailure("Failed to complete multipart upload", response.status));
   }
 }
 
@@ -235,11 +246,19 @@ async function abortMultipartUpload(remotePath: string, uploadId: string): Promi
 
 async function simpleUpload(remotePath: string, data: Buffer, contentType: string): Promise<void> {
   const url = new URL(`${S3_ENDPOINT}/${S3_BUCKET}/${remotePath}`);
-  const headers = signRequest("PUT", url, { "Content-Type": contentType, "Content-Length": String(data.length) }, data, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION);
+  const headers = signRequest(
+    "PUT",
+    url,
+    { "Content-Type": contentType, "Content-Length": String(data.length), ...WRITE_ONCE },
+    data,
+    S3_ACCESS_KEY,
+    S3_SECRET_KEY,
+    S3_REGION
+  );
 
   const response = await fetch(url.toString(), { method: "PUT", headers, body: data });
   if (!response.ok) {
-    throw new Error(`Upload failed: ${response.status}`);
+    throw new Error(uploadFailure("Upload failed", response.status));
   }
 }
 
