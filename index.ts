@@ -215,7 +215,7 @@ async function uploadPart(remotePath: string, uploadId: string, partNumber: numb
   return etag;
 }
 
-async function completeMultipartUpload(remotePath: string, uploadId: string, parts: Array<{ partNumber: number; etag: string }>): Promise<void> {
+async function completeMultipartUpload(remotePath: string, uploadId: string, parts: Array<{ partNumber: number; etag: string }>): Promise<string | null> {
   const url = new URL(`${S3_ENDPOINT}/${S3_BUCKET}/${remotePath}?uploadId=${encodeURIComponent(uploadId)}`);
   const partsXml = parts.map((p) => `<Part><PartNumber>${p.partNumber}</PartNumber><ETag>${p.etag}</ETag></Part>`).join("");
   const body = `<?xml version="1.0" encoding="UTF-8"?><CompleteMultipartUpload>${partsXml}</CompleteMultipartUpload>`;
@@ -225,6 +225,7 @@ async function completeMultipartUpload(remotePath: string, uploadId: string, par
   if (!response.ok) {
     throw new Error(`Failed to complete multipart upload: ${response.status}`);
   }
+  return readVersionId(response);
 }
 
 async function abortMultipartUpload(remotePath: string, uploadId: string): Promise<void> {
@@ -233,7 +234,13 @@ async function abortMultipartUpload(remotePath: string, uploadId: string): Promi
   await fetch(url.toString(), { method: "DELETE", headers });
 }
 
-async function simpleUpload(remotePath: string, data: Buffer, contentType: string): Promise<void> {
+// Returns null when bucket versioning is off (header missing or "null")
+function readVersionId(response: Response): string | null {
+  const versionId = response.headers.get("x-amz-version-id");
+  return versionId && versionId !== "null" ? versionId : null;
+}
+
+async function simpleUpload(remotePath: string, data: Buffer, contentType: string): Promise<string | null> {
   const url = new URL(`${S3_ENDPOINT}/${S3_BUCKET}/${remotePath}`);
   const headers = signRequest("PUT", url, { "Content-Type": contentType, "Content-Length": String(data.length) }, data, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION);
 
@@ -241,6 +248,7 @@ async function simpleUpload(remotePath: string, data: Buffer, contentType: strin
   if (!response.ok) {
     throw new Error(`Upload failed: ${response.status}`);
   }
+  return readVersionId(response);
 }
 
 async function readFileChunk(filePath: string, start: number, length: number): Promise<Buffer> {
@@ -268,10 +276,11 @@ async function uploadFile(filePath: string): Promise<string> {
   const originalFileName = basename(filePath);
   const remotePath = `${folderId}/${originalFileName}`;
   const contentType = detectContentType(filePath);
+  let versionId: string | null;
 
   if (fileSize <= MULTIPART_THRESHOLD) {
     const data = await fs.readFile(filePath);
-    await simpleUpload(remotePath, data, contentType);
+    versionId = await simpleUpload(remotePath, data, contentType);
   } else {
     // Multipart upload
     process.stderr.write(`Uploading ${(fileSize / 1024 / 1024).toFixed(1)}MB...\n`);
@@ -288,7 +297,7 @@ async function uploadFile(filePath: string): Promise<string> {
         const etag = await uploadPart(remotePath, uploadId, partNumber, chunkBuffer);
         parts.push({ partNumber, etag });
       }
-      await completeMultipartUpload(remotePath, uploadId, parts);
+      versionId = await completeMultipartUpload(remotePath, uploadId, parts);
     } catch (error) {
       await abortMultipartUpload(remotePath, uploadId);
       throw error;
@@ -296,7 +305,13 @@ async function uploadFile(filePath: string): Promise<string> {
   }
 
   const encodedPath = remotePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
-  return `${S3_ENDPOINT}/${S3_BUCKET}/${encodedPath}`;
+  const url = `${S3_ENDPOINT}/${S3_BUCKET}/${encodedPath}`;
+  if (!versionId) {
+    process.stderr.write("Warning: bucket versioning is off; this link can be overwritten.\n");
+    return url;
+  }
+  // Pinning the version keeps the link on these bytes even if the key is overwritten
+  return `${url}?versionId=${encodeURIComponent(versionId)}`;
 }
 
 // Main
